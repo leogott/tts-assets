@@ -1,0 +1,87 @@
+local manifestations = {guid = "5a3255"};
+local board = {guid = "a24f8c"};
+-- first card location, relative to board
+local card_offset = {x = 6.2, y = 2, z = -4.53};
+local card_spacing = {x = -2.53, z = 2.53};
+
+board_layout = {
+    "A", "B", "C", "A", "B",
+    "A", "C", "B", "A", "C",
+    "B", "C", "A", "B", "C",
+    "B", "A", "C", "B", "A",
+    "C", "A", "B", "C", "A"
+}
+
+function onLoad()
+    createButtons()
+end
+
+--Make setup button
+function createButtons()
+    self.createButton({
+        label = "Setup",
+        click_function = "buttonClick_setup", function_owner = self,
+        position = {-2.5,0.3,0}, rotation = {0,0,0}, height = 400, width = 820,
+        font_size = 300, color = {0,0,0}, font_color = {1,1,1}
+    })
+end
+
+function buttonClick_setup()
+    board.obj = getObjectFromGUID(board.guid);
+    manifestations.obj = getObjectFromGUID(manifestations.guid)
+    self.randomize();
+    manifestations.obj.randomize();
+    placeManifestations();
+    Wait.time(placeDistricts, 1, 1)
+    -- placeDistricts();
+end
+
+--Shuffle and place the district cards
+function placeDistricts()
+    local cards = {A = {}, B = {}, C = {}};
+
+    for i, district_card in ipairs(self.getObjects()) do
+        local first_letter = string.sub(district_card.name, 1, 1);
+        table.insert(cards[first_letter], district_card.guid);
+    end
+    for i, type in ipairs(board_layout) do
+        self.takeObject({
+            position          = getNextPosition(i),
+            rotation          = getLocalRotation({0, 90*(math.random(4)-1), 0}),
+            guid              = table.remove(cards[type]),
+            callback_function = lockLater
+        });
+    end
+end
+
+function placeManifestations()
+    local cards = manifestations.obj.getObjects();
+    for i, card in ipairs(cards) do
+        manifestations.obj.takeObject({
+            position          = getNextPosition(i),
+            rotation          = getLocalRotation({0, 0, 180}),
+            callback_function = lockLater
+        });
+    end
+end
+--Helpers
+function getNextPosition(i)
+    return board.obj.positionToWorld({
+        card_offset.x + card_spacing.x *((i-1)%5),
+        card_offset.y,
+        card_offset.z + card_spacing.z *(math.floor((i-1)/5))
+    })
+end
+
+function getLocalRotation(rotation)
+    local board_rotation = board.obj.getRotation();
+    return {
+        (board_rotation[1] + rotation[1])%360,
+        (board_rotation[2] + rotation[2])%360,
+        (board_rotation[3] + rotation[3])%360
+    }
+end
+
+function lockLater(obj)
+    Wait.time(function() obj.setLock(true) end, 0.5, 1)
+end
